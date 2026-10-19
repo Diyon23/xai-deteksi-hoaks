@@ -65,7 +65,7 @@ st.markdown("""
 col_left, col_right = st.columns([1.2, 2.8])
 
 with col_left:
-    st.markdown("#### PANEL MASUKAN TEKS")
+    st.markdown("#### Semakin Banyak Narasi Berita Yang Anda Masukan maka semakin Presisi Hasilnya")
     raw_text = st.text_area("Masukkan Narasi / Artikel Berita:", height=200, placeholder='"Masukkan teks berita di sini..."')
     xai_method = st.radio("Pilih Metode Interpretasi (XAI):", options=["LIME (Local Surrogate)", "SHAP (Shapley Values)", "ELI5 (Text Highlighting)", "Mode Komparasi Semua"])
     top_k = st.slider("Jumlah Fitur Kata Kunci (Top-K):", min_value=5, max_value=20, value=10)
