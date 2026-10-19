@@ -3,8 +3,7 @@ import numpy as np
 import re
 import pickle
 from sklearn.linear_model import LogisticRegression
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
 
 print("Memulai kompilasi dataset...")
@@ -56,21 +55,27 @@ def clean_text(text):
 print("Pra-pemrosesan teks berjalan...")
 final_df['clean_text'] = final_df['text'].apply(clean_text)
 
-print("Melatih model TF-IDF dan Naive Bayes...")
-vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-X = vectorizer.fit_transform(final_df['clean_text'])
+print("Melatih model TF-IDF dan Logistic Regression...")
+tfidf_vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+X_tfidf = tfidf_vectorizer.fit_transform(final_df['clean_text'])
 y = final_df['label']
 clf = LogisticRegression(random_state=42)
-clf.fit(X, y)
+clf.fit(X_tfidf, y)
+
+print("Melatih model CountVectorizer untuk LDA...")
+# LDA wajib menggunakan CountVectorizer (frekuensi bilangan bulat)
+count_vectorizer = CountVectorizer(max_features=5000, ngram_range=(1, 2))
+X_counts = count_vectorizer.fit_transform(final_df['clean_text'])
 
 print("Melatih Model Aspek (LDA)...")
 lda = LatentDirichletAllocation(n_components=4, random_state=42)
-lda.fit(X)
+lda.fit(X_counts) # <-- Dilatih menggunakan X_counts
 
 slang_dict = {'bgt': 'banget', 'drpd': 'daripada', 'yg': 'yang', 'tdk': 'tidak', 'dgn': 'dengan', 'krn': 'karena'}
 
 # Menyimpan model
-with open('tfidf_vectorizer.pkl', 'wb') as f: pickle.dump(vectorizer, f)
+with open('tfidf_vectorizer.pkl', 'wb') as f: pickle.dump(tfidf_vectorizer, f)
+with open('count_vectorizer.pkl', 'wb') as f: pickle.dump(count_vectorizer, f) # Ekspor model baru untuk LDA
 with open('classifier_model.pkl', 'wb') as f: pickle.dump(clf, f)
 with open('lda_model.pkl', 'wb') as f: pickle.dump(lda, f)
 with open('slang_dict.pkl', 'wb') as f: pickle.dump(slang_dict, f)
