@@ -96,9 +96,9 @@ with col_right:
         
         # Penamaan Tipe berdasarkan karakteristik hoaks dan fakta
         if topic_id == 1:
-            topic_val = "🏷️ Tipe 1: Penyebab Hoaks (Klaim Palsu / Sensasional)"
+            topic_val = "🏷️ berita ini merupakan Hoaks "
         else:
-            topic_val = "🏷️ Tipe 2: Informasi Fakta & Berita Kredibel"
+            topic_val = "🏷️ Berita ini merupakan Fakta & Berita yang Kredibel"
     
     top_col1, top_col2 = st.columns(2)
     with top_col1:
