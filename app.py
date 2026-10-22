@@ -85,9 +85,9 @@ with col_right:
         hoax_prob = pred_prob[1]
         
         if hoax_prob >= 0.5:
-            status_color_class, status_label, status_val = "status-box-red", "STATUS PREDIKSI KLASIFIKASI:", f"🚨 HOAKS ({hoax_prob*100:.1f}% KEYAKINAN)"
+            status_color_class, status_label, status_val = "status-box-red", "STATUS PREDIKSI KLASIFIKASI:", f"🚨 Berita ini {hoax_prob*100:.1f}% HOAKS"
         else:
-            status_color_class, status_label, status_val = "status-box-blue", "STATUS PREDIKSI KLASIFIKASI:", f"✅ FAKTA ({(1-hoax_prob)*100:.1f}% KEYAKINAN)"
+            status_color_class, status_label, status_val = "status-box-blue", "STATUS PREDIKSI KLASIFIKASI:", f"✅ Berita ini {(1-hoax_prob)*100:.1f}% FAKTA"
             
         # Prediksi Aspek LDA (2 Tipe)
         vec_text_lda = count_vectorizer.transform([final_text])
