@@ -89,10 +89,16 @@ with col_right:
         else:
             status_color_class, status_label, status_val = "status-box-blue", "STATUS PREDIKSI KLASIFIKASI:", f"✅ FAKTA ({(1-hoax_prob)*100:.1f}% KEYAKINAN)"
             
-        # Prediksi Aspek LDA menggunakan CountVectorizer (Akurat)
+        # Prediksi Aspek LDA (2 Tipe)
         vec_text_lda = count_vectorizer.transform([final_text])
-        topic_id = np.argmax(lda_model.transform(vec_text_lda)[0]) + 1
-        topic_val = f"🏷️ Topik {topic_id}: Isu Terdeteksi"
+        lda_probs = lda_model.transform(vec_text_lda)[0]
+        topic_id = np.argmax(lda_probs) + 1
+        
+        # Penamaan Tipe berdasarkan karakteristik hoaks dan fakta
+        if topic_id == 1:
+            topic_val = "🏷️ Tipe 1: Penyebab Hoaks (Klaim Palsu / Sensasional)"
+        else:
+            topic_val = "🏷️ Tipe 2: Informasi Fakta & Berita Kredibel"
     
     top_col1, top_col2 = st.columns(2)
     with top_col1:
