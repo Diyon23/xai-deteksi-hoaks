@@ -31,6 +31,25 @@ def predict_probability_wrapper(texts):
     vec_texts = tfidf_vectorizer.transform(texts)
     return classifier_model.predict_proba(vec_texts)
 
+def get_dynamic_topic_name(lda_model, count_vectorizer, topic_idx):
+    feature_names = count_vectorizer.get_feature_names_out()
+    topic_words = [feature_names[i] for i in lda_model.components_[topic_idx].argsort()[:-8:-1]]
+    
+    joined_words = " ".join(topic_words).lower()
+    
+    politik_keywords = ['pemerintah', 'presiden', 'partai', 'pemilu', 'politik', 'menteri', 'dpr', 'negara', 'kebijakan']
+    kesehatan_keywords = ['covid', 'obat', 'vaksin', 'dokter', 'rumah', 'sakit', 'kesehatan', 'virus', 'pasien', 'gejala']
+    ekonomi_keywords = ['harga', 'ekonomi', 'rupiah', 'pajak', 'bisnis', 'pasar', 'uang', 'inflasi', 'bantuan', 'miliarder', 'triliun', 'saham', 'investasi', 'bank', 'keuangan']
+    
+    if any(k in joined_words for k in politik_keywords):
+        return f"Topik {topic_idx + 1}: Politik & Pemerintahan ({', '.join(topic_words[:3])})"
+    elif any(k in joined_words for k in kesehatan_keywords):
+        return f"Topik {topic_idx + 1}: Kesehatan & Medis ({', '.join(topic_words[:3])})"
+    elif any(k in joined_words for k in ekonomi_keywords):
+        return f"Topik {topic_idx + 1}: Ekonomi & Keuangan ({', '.join(topic_words[:3])})"
+    else:
+        return f"Topik {topic_idx + 1}: Sosial & Umum ({', '.join(topic_words[:3])})"
+
 # ==========================================
 # 2. PENGATURAN HALAMAN & KUSTOMISASI CSS
 # ==========================================
@@ -43,7 +62,7 @@ st.markdown("""
 .status-box-red { border: 2px solid #ff4b4b; background-color: #fffafa; padding: 15px; border-radius: 8px; text-align: center; color: #cc0000; }
 .status-box-blue { border: 2px solid #1f77b4; background-color: #f0f7ff; padding: 15px; border-radius: 8px; text-align: center; color: #0055a4; }
 .status-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333; }
-.status-value { font-size: 22px; font-weight: bold; }
+.status-value { font-size: 18px; font-weight: bold; }
 .eli5-box-yellow { border: 1px solid #f4c430; background-color: #fffdf5; padding: 20px; border-radius: 8px; margin-top: 15px; }
 .table-header { padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; margin-bottom: 10px; }
 .header-hoaks { background-color: #ffeaea; color: #d62728; }
@@ -67,7 +86,7 @@ col_left, col_right = st.columns([1.2, 2.8])
 with col_left:
     st.markdown("#### Semakin Banyak Jumlah Kata Pada Narasi Berita Yang Anda Masukan maka semakin Presisi Hasilnya")
     raw_text = st.text_area("Masukkan Narasi / Artikel Berita:", height=200, placeholder='"Masukkan teks berita di sini..."')
-    xai_method = st.radio("Pilih Metode Interpretasi (XAI) disarankan menggunakan mode komparasi semua karena akan mengeluarkan semua metodenya secara sekaligus di masing-masing tab :", options=["LIME (Local Surrogate)", "SHAP (Shapley Values)", "ELI5 (Text Highlighting)", "Mode Komparasi Semua"])
+    xai_method = st.radio("Pilih Metode Interpretasi (XAI):", options=["LIME (Local Surrogate)", "SHAP (Shapley Values)", "ELI5 (Text Highlighting)", "Mode Komparasi Semua"])
     top_k = st.slider("Jumlah Fitur Kata Kunci (Top-K):", min_value=5, max_value=20, value=10)
     analyze_button = st.button("🔍 ANALISIS TRANSPARANSI", use_container_width=True, type="primary")
 
@@ -79,26 +98,23 @@ with col_right:
         normalized_tokens = [slang_dict.get(word, word) for word in clean_text.split()]
         final_text = " ".join(normalized_tokens)
         
-        # Prediksi Klasifikasi menggunakan TF-IDF
+        # 1. Prediksi Klasifikasi Kebenaran (Logistic Regression + TF-IDF)
         vec_text = tfidf_vectorizer.transform([final_text])
         pred_prob = classifier_model.predict_proba(vec_text)[0]
         hoax_prob = pred_prob[1]
         
         if hoax_prob >= 0.5:
-            status_color_class, status_label, status_val = "status-box-red", "STATUS PREDIKSI KLASIFIKASI:", f"🚨 Berita ini {hoax_prob*100:.1f}% HOAKS"
+            status_color_class, status_label, status_val = "status-box-red", "STATUS PREDIKSI KLASIFIKASI:", f"🚨 HOAKS ({hoax_prob*100:.1f}%)"
         else:
-            status_color_class, status_label, status_val = "status-box-blue", "STATUS PREDIKSI KLASIFIKASI:", f"✅ Berita ini {(1-hoax_prob)*100:.1f}% FAKTA"
+            status_color_class, status_label, status_val = "status-box-blue", "STATUS PREDIKSI KLASIFIKASI:", f"✅ FAKTA ({(1-hoax_prob)*100:.1f}%)"
             
-        # Prediksi Aspek LDA (2 Tipe)
+        # 2. Aspek Tematik Berita (LDA Topic Modeling dengan Label Otomatis Berdasarkan Dominasi Kata)[cite: 8]
         vec_text_lda = count_vectorizer.transform([final_text])
         lda_probs = lda_model.transform(vec_text_lda)[0]
-        topic_id = np.argmax(lda_probs) + 1
+        dominant_topic_idx = np.argmax(lda_probs)
         
-        # Penamaan Tipe berdasarkan karakteristik hoaks dan fakta
-        if topic_id == 1:
-            topic_val = "🏷️ berita ini merupakan Hoaks "
-        else:
-            topic_val = "🏷️ Berita ini merupakan Fakta & Berita yang Kredibel"
+        topic_name_labeled = get_dynamic_topic_name(lda_model, count_vectorizer, dominant_topic_idx)
+        topic_val = f"🏷️ {topic_name_labeled} ({lda_probs[dominant_topic_idx]*100:.1f}%)"
     
     top_col1, top_col2 = st.columns(2)
     with top_col1:
@@ -140,7 +156,6 @@ with col_right:
         if analyze_button and raw_text and tfidf_vectorizer and ("ELI5" in xai_method or "Semua" in xai_method):
             with st.spinner("Memproses ELI5..."):
                 try:
-                    # Menggunakan metode TextExplainer sesuai pendekatan Post-Hoc Black-Box Skripsi
                     te = TextExplainer(random_state=42)
                     te.fit(final_text, predict_probability_wrapper)
                     
@@ -166,7 +181,6 @@ with col_right:
                             token = str(token)
                         return re.sub(r'[^a-zA-Z]', '', token).lower()
 
-                    # Ekstraksi Top-K Kata (LIME vs SHAP)
                     lime_words = [x[0] for x in lime_exp.as_list()[:top_k]]
                     lime_set = set([clean_token(w) for w in lime_words if clean_token(w)])
                     
@@ -181,7 +195,6 @@ with col_right:
                     shap_words = [valid_tokens[i] for i in top_shap_indices]
                     shap_set = set([clean_token(w) for w in shap_words if clean_token(w)])
                     
-                    # Hitung Jaccard Similarity Index (Persamaan 3.4)
                     intersection = lime_set.intersection(shap_set)
                     union = lime_set.union(shap_set)
                     jaccard_index = len(intersection) / len(union) if len(union) > 0 else 0
@@ -205,7 +218,7 @@ with col_right:
                 except Exception as e:
                     st.error(f"Gagal memproses metrik komparasi: {e}")
         else:
-             st.info("Pilih opsi 'Mode Komparasi Semua' lalu klik 'Analisis Transparansi' untuk melihat tingkat kesepakatan fitur (Jaccard Index).")
+             st.info("Pilih opsi 'Mode Komparasi Semua' lalu klik 'Analisis Transparansi' untuk melihat tingkat kesepakatan fitur.")
 
 # ==========================================
 # 4. TABEL AUDIT LINGUISTIK TOPIK
@@ -219,7 +232,6 @@ if analyze_button and raw_text and tfidf_vectorizer:
     try:
         feature_names = tfidf_vectorizer.get_feature_names_out()
         
-        # Ekstraksi Bobot Koefisien Model (Mendukung Naive Bayes & Logistic Regression)
         if hasattr(classifier_model, "coef_"):
             coefs = classifier_model.coef_[0]
         elif hasattr(classifier_model, "feature_log_prob_"):
@@ -232,15 +244,12 @@ if analyze_button and raw_text and tfidf_vectorizer:
         active_word_weights = [(feature_names[i], coefs[i]) for i in active_indices]
         
         if active_word_weights:
-            # 1. Kata Spesifik Hoaks (Bobot > 0, Diambil Top-K)
             sorted_hoax = sorted([item for item in active_word_weights if item[1] > 0], key=lambda x: x[1], reverse=True)
             hoax_words = [w for w, _ in sorted_hoax[:top_k]]
             
-            # 2. Kata Spesifik Fakta (Bobot < 0, Diambil Top-K)
             sorted_fakta = sorted([item for item in active_word_weights if item[1] < 0], key=lambda x: x[1])
             fakta_words = [w for w, _ in sorted_fakta[:top_k]]
             
-            # 3. Kata Tumpang-Tindih / Netral (Sisanya, bobot mendekati 0)
             used_words = set(hoax_words + fakta_words)
             remaining_words = [item for item in active_word_weights if item[0] not in used_words]
             sorted_overlap = sorted(remaining_words, key=lambda x: abs(x[1]))
@@ -257,7 +266,7 @@ with col_hoaks:
         if hoax_words:
             for w in hoax_words: st.markdown(f"- **{w}**")
         else:
-            st.markdown("- *Tidak ada kata spesifik hoaks (bobot positif) pada teks ini*")
+            st.markdown("- *Tidak ada kata spesifik hoaks pada teks ini*")
     else:
         st.markdown("- mujarab (+0.42)\n- semalam (+0.31)")
 
@@ -267,7 +276,7 @@ with col_fakta:
         if fakta_words:
             for w in fakta_words: st.markdown(f"- **{w}**")
         else:
-            st.markdown("- *Tidak ada kata spesifik fakta (bobot negatif) pada teks ini*")
+            st.markdown("- *Tidak ada kata spesifik fakta pada teks ini*")
     else:
         st.markdown("- uji klinis (-0.38)\n- bpom (-0.29)")
 

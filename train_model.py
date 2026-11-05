@@ -56,12 +56,19 @@ y = final_df['label']
 clf = LogisticRegression(random_state=42)
 clf.fit(X_tfidf, y)
 
-print("Melatih model CountVectorizer dan LDA (2 Tipe)...")
-count_vectorizer = CountVectorizer(max_features=5000, ngram_range=(1, 2))
+print("Melatih model CountVectorizer dan LDA (4 Topik Tematik)...")
+# Daftar stop words bahasa Indonesia untuk membuang kata sambung yang terlalu sering muncul
+indonesian_stopwords = [
+    'yang', 'untuk', 'pada', 'ke', 'para', 'namun', 'menurut', 'antara', 'dia', 'dua', 
+    'ia', 'seperti', 'jika', 'sehingga', 'kembali', 'dan', 'ini', 'dari', 'dalam', 'dengan', 
+    'tidak', 'sampai', 'bisa', 'ada', 'oleh', 'saat', 'sebagai', 'bahwa', 'atau', 'tersebut', 
+    'karena', 'terhadap', 'setelah', 'maupun', 'lalu', 'sedangkan', 'supaya', 'kepada'
+]
+
+count_vectorizer = CountVectorizer(max_features=5000, ngram_range=(1, 2), stop_words=indonesian_stopwords)
 X_counts = count_vectorizer.fit_transform(final_df['clean_text'])
 
-# DIUBAH MENJADI 2 KOMPONEN (TIPE)
-lda = LatentDirichletAllocation(n_components=2, random_state=42)
+lda = LatentDirichletAllocation(n_components=4, random_state=42)
 lda.fit(X_counts)
 
 slang_dict = {'bgt': 'banget', 'drpd': 'daripada', 'yg': 'yang', 'tdk': 'tidak', 'dgn': 'dengan', 'krn': 'karena'}
@@ -72,4 +79,4 @@ with open('classifier_model.pkl', 'wb') as f: pickle.dump(clf, f)
 with open('lda_model.pkl', 'wb') as f: pickle.dump(lda, f)
 with open('slang_dict.pkl', 'wb') as f: pickle.dump(slang_dict, f)
 
-print("✅ Selesai! Model 2 Tipe berhasil diekspor.")
+print("✅ Selesai! Model berhasil diekspor.")
